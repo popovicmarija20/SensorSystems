@@ -153,49 +153,62 @@ for i in range(0, len(measurements_temp), 3):
 thresholds_temp = [0.0, 0.2, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 7.0]
 thresholds_humid = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
 
+def reduced_transmissions(f_measurements_temp, f_measurements_humid, f_thresholds_temp, f_thresholds_humid, MA):
+    counters_list = {}
+    for threshold in f_thresholds_temp:
+        for threshold_h in f_thresholds_humid:
+            counter = 0
+            predictions_temp = list()
+            predictions_humid = list()
 
-def reduced_transmissions(f_measurements, f_thresholds, MA):
-    counters_list = list()
-    for threshold in f_thresholds:
-        counter = 0
-        predictions = list()
+            for i in range(0, MA):
+                predictions_temp.append(f_measurements_temp[i])
+                predictions_humid.append(f_measurements_humid[i])
 
-        for i in range(0, MA):
-            predictions.append(f_measurements[i])
+            for i in range(MA, len(f_measurements_temp) - MA):
+                next_prediction_temp = mean(predictions_temp[-MA:])
+                next_prediction_humid = mean(predictions_humid[-MA:])
+                if (abs(f_measurements_temp[i] - next_prediction_temp) > threshold) \
+                        and\
+                        (abs(f_measurements_humid[i] - next_prediction_humid) > threshold_h):
+                    counter += 1
+                    predictions_temp.append(f_measurements_temp[i])
+                    predictions_humid.append(f_measurements_humid[i])
+                else:
+                    predictions_temp.append(next_prediction_temp)
+                    predictions_humid.append(next_prediction_humid)
 
-        for i in range(MA, len(f_measurements) - MA):
-            next_prediction = mean(predictions[-MA:])
-            if abs(f_measurements[i] - next_prediction) > threshold:
-                counter += 1
-                predictions.append(f_measurements[i])
-            else:
-                predictions.append(next_prediction)
-
-        counters_list.append(counter / len(f_measurements) * 100.0)
+            counters_list.update({str(threshold) + ';' + str(threshold_h): counter / len(f_measurements_temp) * 100.0})
     return counters_list
 
 
-def MSE(f_measurements, f_thresholds, MA):
-    errors_list = list()
+def MSE(f_measurements_temp, f_measurements_humid, f_thresholds_temp, f_thresholds_humid, MA):
+    errors_list = {}
 
-    for threshold in f_thresholds:
-        predictions = list()
-        thresh_errors = list()
+    for threshold in f_thresholds_temp:
+        for threshold_h in f_thresholds_humid:
+            predictions_temp = list()
+            predictions_humid = list()
+            thresh_errors = list()
 
-        for i in range(0, MA):
-            predictions.append(f_measurements[i])
+            for i in range(0, MA):
+                predictions_temp.append(f_measurements_temp[i])
+                predictions_humid.append(f_measurements_humid[i])
 
-        for i in range(MA, len(f_measurements) - MA):
-            next_prediction = mean(predictions[-MA:])
-            curr_error = f_measurements[i] - next_prediction
+            for i in range(MA, len(f_measurements_temp) - MA):
+                next_prediction_temp = mean(predictions_temp[-MA:])
+                next_prediction_humid = mean(predictions_humid[-MA:])
+                curr_error_temp = f_measurements_temp[i] - next_prediction_temp
+                curr_error_humid = f_measurements_humid[i] - next_prediction_humid
 
-            if abs(curr_error) > threshold:
-                predictions.append(f_measurements[i])
-                thresh_errors.append(curr_error*curr_error)
-            else:
-                predictions.append(next_prediction)
+                if abs(curr_error_temp) > threshold and abs(curr_error_humid) > threshold_h:
+                    predictions_temp.append(f_measurements_temp[i])
+                    predictions_humid.append(f_measurements_humid[i])
+                    thresh_errors.append(pow(curr_error_humid, 2) + pow(curr_error_temp, 2))
+                else:
+                    predictions_temp.append(next_prediction_temp)
 
-        errors_list.append(mean(thresh_errors))
+            errors_list.update({str(threshold) + ';' + str(threshold_h): mean(thresh_errors)})
 
     return errors_list
 
